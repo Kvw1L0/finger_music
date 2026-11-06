@@ -1,0 +1,19 @@
+{
+  "name": "finger_music",
+  "version": "1.0.0",
+  "description": "Interactive gesture-based air-drawing musical synthesizer using MediaPipe and Tone.js",
+  "main": "index.html",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "mediapipe",
+    "tonejs",
+    "synth",
+    "webcam",
+    "air-canvas",
+    "generative-music"
+  ],
+  "author": "Kvw1L0",
+  "license": "MIT"
+}

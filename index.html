@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEON AIR SYNTH — Sintetizador Gestual en el Aire</title>
+  
+  <!-- Fuentes Futuristas -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  
+  <!-- Tone.js para síntesis de audio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Overlay de Inicio / Permiso de Audio & Cámara -->
+  <div id="start-overlay" class="overlay">
+    <div class="modal">
+      <div class="neon-badge">EXP-01 // AIR SYNTH</div>
+      <h1 class="glitch" data-text="NEON AIR SYNTH">NEON AIR SYNTH</h1>
+      <p class="subtitle">Dibuja notas de neón en el aire con tu mano y crea música en tiempo real.</p>
+      
+      <div class="instructions-grid">
+        <div class="instruction-card">
+          <div class="icon-wrap"><i data-lucide="hand"></i></div>
+          <h3>Pellizca para Dibujar</h3>
+          <p>Junta el dedo <strong>índice y pulgar</strong> para crear trazos de luz flotantes.</p>
+        </div>
+        <div class="instruction-card">
+          <div class="icon-wrap"><i data-lucide="scan-line"></i></div>
+          <h3>Escáner Musical</h3>
+          <p>El rayo vertical escanea tus trazos. Arriba = Agudo, Abajo = Grave.</p>
+        </div>
+        <div class="instruction-card">
+          <div class="icon-wrap"><i data-lucide="sparkles"></i></div>
+          <h3>3 Formas Ocultas</h3>
+          <p>Dibuja un <strong>Triángulo</strong>, un <strong>Cuadrado</strong> o una <strong>Estrella</strong> para desbloquear melodías secretas.</p>
+        </div>
+        <div class="instruction-card">
+          <div class="icon-wrap"><i data-lucide="trash-2"></i></div>
+          <h3>Palma Abierta</h3>
+          <p>Abre la palma de la mano durante 1 segundo para disolver todos los trazos.</p>
+        </div>
+      </div>
+
+      <button id="btn-start" class="btn-primary">
+        <span>ACTIVAR CÁMARA Y AUDIO</span>
+        <i data-lucide="play"></i>
+      </button>
+      <div id="camera-status" class="status-tip">Requiere acceso a webcam y audio</div>
+    </div>
+  </div>
+
+  <!-- Contenedor Principal de Video y Canvas -->
+  <div class="viewport-container">
+    <!-- Video de la Webcam (oculto para procesarlo con MediaPipe y renderizarlo en canvas) -->
+    <video id="webcam" playsinline muted></video>
+    
+    <!-- Canvas de Interacción donde se dibuja todo -->
+    <canvas id="synth-canvas"></canvas>
+
+    <!-- Notificación / Easter Egg Desbloqueado -->
+    <div id="easter-egg-banner" class="easter-egg-banner hidden">
+      <div class="banner-glow"></div>
+      <div class="banner-content">
+        <div class="badge-discovered">¡MELODÍA SECRETA DESBLOQUEADA!</div>
+        <h2 id="egg-title">Triángulo Celestial</h2>
+        <p id="egg-desc">Arpegio de sintetizador etéreo en Modo Lidio activado.</p>
+      </div>
+    </div>
+
+    <!-- HUD Superior -->
+    <header class="hud-header">
+      <div class="hud-brand">
+        <span class="pulse-indicator live"></span>
+        <span class="brand-text">NEON AIR SYNTH</span>
+        <span class="version-tag">v2.0</span>
+      </div>
+
+      <!-- Tarjetas de Melodías Ocultas (Progreso) -->
+      <div class="secret-badges">
+        <div class="secret-item" id="badge-triangle" title="Dibuja un triángulo en el aire">
+          <i data-lucide="triangle"></i>
+          <span>TRIÁNGULO</span>
+          <div class="lock-icon"><i data-lucide="lock"></i></div>
+        </div>
+        <div class="secret-item" id="badge-square" title="Dibuja un cuadrado en el aire">
+          <i data-lucide="square"></i>
+          <span>CUADRADO</span>
+          <div class="lock-icon"><i data-lucide="lock"></i></div>
+        </div>
+        <div class="secret-item" id="badge-star" title="Dibuja una estrella en el aire">
+          <i data-lucide="star"></i>
+          <span>ESTRELLA</span>
+          <div class="lock-icon"><i data-lucide="lock"></i></div>
+        </div>
+      </div>
+
+      <div class="hud-actions">
+        <button id="btn-toggle-sound" class="hud-btn" title="Silenciar / Activar Sonido">
+          <i data-lucide="volume-2"></i>
+        </button>
+        <button id="btn-clear" class="hud-btn" title="Limpiar todos los trazos">
+          <i data-lucide="eraser"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- HUD Lateral / Controles flotantes -->
+    <aside class="hud-controls">
+      <div class="control-group">
+        <label><i data-lucide="music"></i> ESCALA</label>
+        <select id="scale-selector" class="hud-select">
+          <option value="pentatonicMajor">Pentatónica Mayor (Luminosa)</option>
+          <option value="pentatonicMinor" selected>Cyberpunk Menor (Oscura)</option>
+          <option value="hirajoshi">Hirajoshi (Mística Japonesa)</option>
+          <option value="synthwave">Retro Synthwave 80s</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <div class="label-with-val">
+          <label><i data-lucide="gauge"></i> TEMPO (BPM)</label>
+          <span id="bpm-val">100</span>
+        </div>
+        <input type="range" id="bpm-slider" min="60" max="180" value="100" class="hud-slider">
+      </div>
+
+      <div class="control-group">
+        <label><i data-lucide="palette"></i> COLOR NEÓN</label>
+        <div class="color-palette">
+          <button class="color-dot active" data-color="#00ffcc" style="--c: #00ffcc;" title="Cian Eléctrico"></button>
+          <button class="color-dot" data-color="#ff007f" style="--c: #ff007f;" title="Magenta Neón"></button>
+          <button class="color-dot" data-color="#39ff14" style="--c: #39ff14;" title="Verde Ácido"></button>
+          <button class="color-dot" data-color="#ffe600" style="--c: #ffe600;" title="Oro Solar"></button>
+          <button class="color-dot" data-color="#9d00ff" style="--c: #9d00ff;" title="Púrpura Cósmico"></button>
+        </div>
+      </div>
+
+      <!-- Barra de estado de gestos -->
+      <div class="gesture-status-card">
+        <div class="gesture-icon" id="gesture-indicator-icon"><i data-lucide="hand"></i></div>
+        <div class="gesture-info">
+          <span class="gesture-title" id="gesture-title">Buscando mano...</span>
+          <span class="gesture-sub" id="gesture-sub">Muestra tu mano frente a la cámara</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Indicador de escala en el lateral izquierdo (Guía de notas) -->
+    <div id="notes-ladder" class="notes-ladder"></div>
+
+    <!-- Guía de gesto de borrado en progreso -->
+    <div id="wipe-progress-container" class="wipe-progress-container hidden">
+      <div class="wipe-label">LIMPIANDO PANTALLA...</div>
+      <div class="wipe-bar"><div id="wipe-bar-fill" class="wipe-bar-fill"></div></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

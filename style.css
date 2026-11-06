@@ -1,0 +1,568 @@
+:root {
+  --bg-dark: #07090e;
+  --accent-cyan: #00ffcc;
+  --accent-pink: #ff007f;
+  --accent-yellow: #ffe600;
+  --accent-green: #39ff14;
+  --accent-purple: #9d00ff;
+  --glass-bg: rgba(11, 15, 25, 0.75);
+  --glass-border: rgba(0, 255, 204, 0.25);
+  --font-display: 'Orbitron', monospace, sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: #e0f2fe;
+  font-family: var(--font-body);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Contenedor principal a pantalla completa */
+.viewport-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #0d1322 0%, #05070a 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#webcam {
+  display: none; /* Se dibuja en el canvas con efectos */
+}
+
+#synth-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Modal de bienvenida / Start Overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 5, 10, 0.92);
+  backdrop-filter: blur(16px);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.modal {
+  background: linear-gradient(135deg, rgba(16, 24, 40, 0.9), rgba(8, 12, 22, 0.95));
+  border: 1px solid rgba(0, 255, 204, 0.4);
+  box-shadow: 0 0 40px rgba(0, 255, 204, 0.15), inset 0 0 20px rgba(0, 255, 204, 0.05);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 720px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+}
+
+.neon-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  color: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 100px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+}
+
+.modal h1 {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  letter-spacing: 3px;
+  color: #fff;
+  text-shadow: 0 0 20px var(--accent-cyan);
+  margin-bottom: 8px;
+}
+
+.modal .subtitle {
+  color: #94a3b8;
+  font-size: 1.1rem;
+  margin-bottom: 32px;
+}
+
+.instructions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 36px;
+  text-align: left;
+}
+
+.instruction-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.instruction-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-cyan);
+}
+
+.instruction-card .icon-wrap {
+  color: var(--accent-cyan);
+  margin-bottom: 10px;
+}
+
+.instruction-card h3 {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.instruction-card p {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, #00ffcc, #00bcff);
+  color: #030a10;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 2px;
+  border: none;
+  padding: 16px 36px;
+  border-radius: 50px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 0 25px rgba(0, 255, 204, 0.5);
+  transition: all 0.25s ease;
+}
+
+.btn-primary:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 35px rgba(0, 255, 204, 0.8);
+}
+
+.status-tip {
+  margin-top: 14px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* HUD Superior */
+.hud-header {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+
+.hud-header * {
+  pointer-events: auto;
+}
+
+.hud-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  padding: 8px 18px;
+  border-radius: 40px;
+  backdrop-filter: blur(10px);
+}
+
+.pulse-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #39ff14;
+  box-shadow: 0 0 10px #39ff14;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.brand-text {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #fff;
+}
+
+.version-tag {
+  font-size: 0.65rem;
+  background: rgba(0, 255, 204, 0.15);
+  color: var(--accent-cyan);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* Insignias de Melodías Ocultas (Easter Eggs) */
+.secret-badges {
+  display: flex;
+  gap: 12px;
+}
+
+.secret-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--glass-bg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 6px 14px;
+  border-radius: 30px;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  color: #64748b;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.secret-item i {
+  width: 16px;
+  height: 16px;
+}
+
+.secret-item.unlocked {
+  color: #fff;
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 15px rgba(255, 230, 0, 0.4);
+  background: rgba(255, 230, 0, 0.12);
+}
+
+.secret-item.unlocked .lock-icon {
+  display: none;
+}
+
+.secret-item.playing {
+  animation: playingBounce 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes playingBounce {
+  from { transform: scale(1); box-shadow: 0 0 10px var(--accent-cyan); }
+  to { transform: scale(1.08); box-shadow: 0 0 25px var(--accent-pink); }
+}
+
+/* Botones de acción rápida */
+.hud-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hud-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s;
+}
+
+.hud-btn:hover {
+  background: rgba(0, 255, 204, 0.25);
+  box-shadow: 0 0 15px var(--accent-cyan);
+  transform: scale(1.05);
+}
+
+/* Panel de Controles Flotante Lateral */
+.hud-controls {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 18px;
+  width: 250px;
+  backdrop-filter: blur(14px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group label {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label-with-val {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#bpm-val {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: var(--accent-cyan);
+}
+
+.hud-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  outline: none;
+  font-family: var(--font-body);
+}
+
+.hud-select option {
+  background: #0f172a;
+  color: #fff;
+}
+
+.hud-slider {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  height: 6px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.hud-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan);
+  cursor: pointer;
+}
+
+.color-palette {
+  display: flex;
+  gap: 8px;
+}
+
+.color-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--c);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.color-dot.active {
+  border-color: #fff;
+  box-shadow: 0 0 12px var(--c);
+  transform: scale(1.15);
+}
+
+/* Indicador de gesto activo */
+.gesture-status-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gesture-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(0, 255, 204, 0.12);
+  color: var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gesture-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.gesture-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.gesture-sub {
+  font-size: 0.65rem;
+  color: #64748b;
+}
+
+/* Escalera de notas a la izquierda */
+.notes-ladder {
+  position: absolute;
+  left: 16px;
+  top: 100px;
+  bottom: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.ladder-note {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.25);
+  transition: all 0.15s ease;
+  letter-spacing: 1px;
+}
+
+.ladder-note.active {
+  color: var(--accent-cyan);
+  text-shadow: 0 0 8px var(--accent-cyan);
+  transform: scale(1.3) translateX(6px);
+}
+
+/* Banner de Easter Egg Desbloqueado */
+.easter-egg-banner {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 50;
+  background: linear-gradient(135deg, rgba(20, 10, 40, 0.95), rgba(10, 5, 25, 0.95));
+  border: 1px solid var(--accent-pink);
+  box-shadow: 0 0 40px rgba(255, 0, 127, 0.4), inset 0 0 20px rgba(255, 0, 127, 0.15);
+  border-radius: 16px;
+  padding: 18px 36px;
+  text-align: center;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: bannerEnter 0.5s ease-out;
+}
+
+.easter-egg-banner.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-30px);
+  pointer-events: none;
+}
+
+@keyframes bannerEnter {
+  0% { transform: translateX(-50%) scale(0.8); opacity: 0; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+.badge-discovered {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: var(--accent-pink);
+  margin-bottom: 4px;
+}
+
+.easter-egg-banner h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: #fff;
+  text-shadow: 0 0 15px var(--accent-pink);
+  margin-bottom: 4px;
+}
+
+.easter-egg-banner p {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+/* Barra de progreso de borrado por palma abierta */
+.wipe-progress-container {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  background: rgba(10, 15, 25, 0.85);
+  border: 1px solid rgba(255, 0, 127, 0.5);
+  padding: 12px 24px;
+  border-radius: 30px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+.wipe-progress-container.hidden {
+  display: none;
+}
+
+.wipe-label {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: var(--accent-pink);
+  margin-bottom: 6px;
+}
+
+.wipe-bar {
+  width: 180px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.wipe-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--accent-pink);
+  box-shadow: 0 0 10px var(--accent-pink);
+  transition: width 0.1s linear;
+}
